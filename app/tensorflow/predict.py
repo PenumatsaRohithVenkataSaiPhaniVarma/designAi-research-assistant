@@ -6,7 +6,7 @@ import tensorflow as tf
 from app.tensorflow.preprocess import clean_text
 
 # -------------------------
-# Load Model
+# Paths
 # -------------------------
 
 SAVE_FOLDER = "app/tensorflow/saved_model"
@@ -14,11 +14,12 @@ SAVE_FOLDER = "app/tensorflow/saved_model"
 MODEL_PATH = os.path.join(SAVE_FOLDER, "document_classifier.keras")
 LABEL_PATH = os.path.join(SAVE_FOLDER, "label_encoder.pkl")
 
-print("Loading model from:", MODEL_PATH)
-model = tf.keras.models.load_model(MODEL_PATH)
+# -------------------------
+# Lazy-loaded resources
+# -------------------------
 
-with open(LABEL_PATH, "rb") as file:
-    label_encoder = pickle.load(file)
+model = None
+label_encoder = None
 
 # -------------------------
 # Create Vectorizer
@@ -33,7 +34,21 @@ vectorizer = tf.keras.layers.TextVectorization(
     output_sequence_length=MAX_SEQUENCE_LENGTH
 )
 
-print("Prediction module loaded successfully.")
+# -------------------------
+# Load Model Only When Needed
+# -------------------------
+
+def load_prediction_resources():
+    global model, label_encoder
+
+    if model is None:
+        print("Loading TensorFlow model...")
+        model = tf.keras.models.load_model(MODEL_PATH)
+
+        with open(LABEL_PATH, "rb") as file:
+            label_encoder = pickle.load(file)
+
+        print("Prediction module loaded successfully.")
 
 # -------------------------
 # Prediction Function
@@ -41,9 +56,10 @@ print("Prediction module loaded successfully.")
 
 def predict_category(text):
 
+    load_prediction_resources()
+
     text = clean_text(text)
 
-    # Learn vocabulary from this text
     vectorizer.adapt([text])
 
     sequence = vectorizer(tf.constant([text]))
