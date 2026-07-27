@@ -1,8 +1,17 @@
 from sentence_transformers import SentenceTransformer
 
 
-# Load the embedding model only once
-model = SentenceTransformer("all-MiniLM-L6-v2")
+model = None
+
+
+def get_model():
+    global model
+
+    if model is None:
+        print("Loading SentenceTransformer...")
+        model = SentenceTransformer("all-MiniLM-L6-v2")
+
+    return model
 
 
 def generate_embeddings(chunks):
