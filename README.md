@@ -270,6 +270,31 @@ http://127.0.0.1:5000
 | /compare | POST | Compare Documents |
 
 ---
+# API Endpoints
+
+(table...)
+
+--------------------------------
+
+# API Documentation
+
+GET /
+
+...
+
+POST /upload
+
+...
+
+POST /ask
+
+...
+
+POST /compare
+
+...
+
+--------------------------------
 
 # Design Decisions
 
