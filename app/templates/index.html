@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+
+{% block title %}
+Home
+{% endblock %}
+
+
+{% block content %}
+
+<div class="upload-container">
+
+    <h1>DesignAI Research Assistant</h1>
+
+    <p>
+
+        Upload cybersecurity documents, research papers,
+        study guides and technical documentation.
+
+    </p>
+
+    <form action="/upload"
+          method="POST"
+          enctype="multipart/form-data"
+          class="baby-container">
+
+        <input
+            type="file"
+            name="files"
+            accept=".pdf,.docx,.txt"
+            required multiple>
+
+        <button class="upload-btn">
+
+            Upload Document
+
+        </button>
+
+    </form>
+
+</div>
+
+{% endblock %}
