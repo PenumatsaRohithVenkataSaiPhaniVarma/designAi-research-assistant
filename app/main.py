@@ -1,8 +1,13 @@
+print("===== MAIN.PY STARTED =====")
+
 from flask import Flask, render_template
+print("Flask imported")
 
 from app.api.upload import upload_bp
+print("upload.py imported")
 
 app = Flask(__name__)
+print("Flask app created")
 
 app.secret_key = "designai_research_assistant_2026"
 
