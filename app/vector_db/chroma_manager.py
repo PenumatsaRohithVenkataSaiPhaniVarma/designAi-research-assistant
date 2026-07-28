@@ -27,11 +27,14 @@ def clear_database():
 
     global client, collection
 
-    get_collection()
+    if client is None:
+        client = chromadb.PersistentClient(
+            path="app/vector_db/chroma_storage"
+        )
 
     try:
         client.delete_collection("research_documents")
-    except:
+    except Exception:
         pass
 
     collection = client.get_or_create_collection(

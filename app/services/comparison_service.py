@@ -1,30 +1,35 @@
 import google.generativeai as genai
 from google.api_core.exceptions import ResourceExhausted
-import app.vector_db.chroma_manager as chroma_manager
+
 from config.settings import GEMINI_API_KEY
+from app.services.text_extractor import extract_text
 
 genai.configure(api_key=GEMINI_API_KEY)
 
 model = genai.GenerativeModel("gemini-flash-latest")
 
 
-def compare_documents(document1, document2):
+def compare_documents(document1, document2, documents):
+    """
+    Compare two uploaded documents without using ChromaDB.
+    """
 
-    # Retrieve all chunks of document 1
-    result1 = chroma_manager.collection.get(
-        where={"document": document1},
-        include=["documents"]
-    )
+    file1 = None
+    file2 = None
 
-    # Retrieve all chunks of document 2
-    result2 = chroma_manager.collection.get(
-        where={"document": document2},
-        include=["documents"]
-    )
+    for doc in documents:
 
-    context1 = "\n".join(result1["documents"])
+        if doc["filename"] == document1:
+            file1 = doc
 
-    context2 = "\n".join(result2["documents"])
+        elif doc["filename"] == document2:
+            file2 = doc
+
+    if not file1 or not file2:
+        return "⚠ One or both selected documents could not be found."
+
+    text1 = extract_text(file1["filepath"])
+    text2 = extract_text(file2["filepath"])
 
     prompt = f"""
 You are an AI Research Assistant.
@@ -34,14 +39,14 @@ Compare these two documents.
 Document 1:
 {document1}
 
-{context1}
+{text1}
 
 ------------------------------------
 
 Document 2:
 {document2}
 
-{context2}
+{text2}
 
 ------------------------------------
 
@@ -57,11 +62,12 @@ Keep the answer clear and easy to read.
 """
 
     try:
-
         response = model.generate_content(prompt)
-
         return response.text
 
     except ResourceExhausted:
-
         return "⚠ Gemini API quota exceeded. Please wait a while and try again."
+
+    except Exception as e:
+        print(e)
+        return "⚠ An unexpected error occurred."

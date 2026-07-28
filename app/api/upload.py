@@ -42,9 +42,11 @@ def upload_file():
 
         result = process_document(file)
 
-        classification = classify_document(result["filepath"])
+        classification = classify_document(result["text"])
 
         all_results.append({
+            "filename": result["filename"],
+            "filepath": result["filepath"],
             "metadata": result["metadata"],
             "summary": result["summary"],
             "category": classification["category"]
@@ -56,14 +58,7 @@ def upload_file():
     session["category"] = all_results[0]["category"]
 
     # Save all uploaded documents
-    session["documents"] = [
-        {
-            "metadata": doc["metadata"],
-            "summary": doc["summary"],
-            "category": doc["category"]
-        }
-        for doc in all_results
-    ]
+    session["documents"] = all_results
     print("===== SAVED DOCUMENTS =====")
     print(session["documents"])
 
@@ -88,7 +83,11 @@ def ask_ai():
 
     history = chat_history
 
-    result = ask_document(question, history)
+    result = ask_document(
+        question,
+        history,
+        session.get("documents", [])
+    )
 
     # Save the latest conversation
     history.append({
@@ -138,7 +137,11 @@ def compare():
         comparison = "⚠ Please select two different documents."
     else:
         comparison = markdown(
-                        compare_documents(document1, document2),
+                        compare_documents(
+                            document1,
+                            document2,
+                            session.get("documents", [])
+                        ),
                         extensions=["tables"]
                     )
     return render_template(

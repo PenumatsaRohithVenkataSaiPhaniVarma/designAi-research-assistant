@@ -1,19 +1,45 @@
 import google.generativeai as genai
-
-from app.vector_db.chroma_manager import search_documents
-from config.settings import GEMINI_API_KEY
 from google.api_core.exceptions import ResourceExhausted
 
-# Configure Gemini
+from config.settings import GEMINI_API_KEY
+
+from app.utils.text_chunker import chunk_text
+from app.services.embedding_service import generate_embeddings
+from app.vector_db.chroma_manager import (
+    clear_database,
+    store_document,
+    search_documents,
+)
+from app.services.text_extractor import extract_text
+
 genai.configure(api_key=GEMINI_API_KEY)
 
 model = genai.GenerativeModel("gemini-flash-latest")
 
 
+def build_vector_database(documents):
+    """
+    Build ChromaDB only when Ask AI is pressed.
+    """
+
+    clear_database()
+
+    for doc in documents:
+
+        text = extract_text(doc["filepath"])
+
+        chunks = chunk_text(text)
+
+        embeddings = generate_embeddings(chunks)
+
+        store_document(
+            document_name=doc["metadata"]["filename"],
+            chunks=chunks,
+            embeddings=embeddings,
+        )
+
+
 def generate_answer(question, context, history):
-    """
-    Generate an answer using the retrieved document context.
-    """
 
     conversation = ""
 
@@ -27,21 +53,21 @@ Assistant: {chat['answer']}
     prompt = f"""
 You are an AI Research Assistant.
 
-Use the previous conversation when answering follow-up questions.
+Use previous conversation if needed.
 
-Answer ONLY using the information provided below.
+Only answer from the document.
 
-If the answer is not available in the context, reply:
+If the answer isn't found say:
 
-"I couldn't find that information in the uploaded documents."
+I couldn't find that information in the uploaded documents.
 
-Previous Conversation:
+Conversation:
 {conversation}
 
-Document Context:
+Context:
 {context}
 
-Current Question:
+Question:
 {question}
 """
 
@@ -53,65 +79,53 @@ Current Question:
 
     except ResourceExhausted:
 
-        return "⚠ Gemini API quota exceeded. Please try again later."
+        return "Gemini quota exceeded."
 
     except Exception as e:
 
         print(e)
 
-        return "⚠ An unexpected error occurred while generating the answer."
-def ask_document(question,history):
-    """
-    Search the uploaded documents and generate an answer.
-    """
+        return "Unexpected error."
 
-    # Search ChromaDB
+
+def ask_document(question, history, documents):
+
+    build_vector_database(documents)
+
     results = search_documents(question)
 
-    # Get retrieved text chunks
     if not results["documents"] or not results["documents"][0]:
+
         return {
             "question": question,
             "answer": "I couldn't find that information in the uploaded documents.",
             "sources": [],
-            "show_sources": False
+            "show_sources": False,
         }
 
-    documents = results["documents"][0]
+    docs = results["documents"][0]
 
-    # Combine into context
-    context = "\n\n".join(documents)
+    context = "\n\n".join(docs)
 
-    # Generate answer using previous conversation
     answer = generate_answer(question, context, history)
-    if answer is None:
-        answer = "Sorry, I couldn't generate an answer."
 
-    # Get metadata
-    metadatas = results.get("metadatas", [[]])[0]
+    metadatas = results["metadatas"][0]
 
-    # Remove duplicate document names
     unique_sources = []
+
     seen = set()
 
     for metadata in metadatas:
 
-        document = metadata["document"]
+        if metadata["document"] not in seen:
 
-        if document not in seen:
-            seen.add(document)
-            unique_sources.append(document)
+            seen.add(metadata["document"])
 
-    # Hide sources when no answer is found
-    if "I couldn't find that information in the uploaded documents." in answer:
-        unique_sources = []
-        show_sources = False
-    else:
-        show_sources = len(unique_sources) > 0
+            unique_sources.append(metadata["document"])
 
     return {
         "question": question,
         "answer": answer,
         "sources": unique_sources,
-        "show_sources": show_sources
+        "show_sources": len(unique_sources) > 0,
     }

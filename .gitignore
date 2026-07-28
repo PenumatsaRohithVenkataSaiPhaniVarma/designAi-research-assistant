@@ -10,7 +10,7 @@ venv/
 .env
 
 # Uploaded files
-app/uploads/*
+app/uploads/
 
 # ChromaDB
 app/vector_db/chroma_storage/
