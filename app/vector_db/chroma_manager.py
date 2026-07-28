@@ -1,19 +1,33 @@
 import chromadb
 from app.services.embedding_service import generate_embeddings
 
-# Create a persistent database
-client = chromadb.PersistentClient(path="app/vector_db/chroma_storage")
+client = None
+collection = None
 
-# Create (or load) a collection
-collection = client.get_or_create_collection(
-    name="research_documents"
-)
+
+def get_collection():
+    global client, collection
+
+    if collection is None:
+        client = chromadb.PersistentClient(
+            path="app/vector_db/chroma_storage"
+        )
+
+        collection = client.get_or_create_collection(
+            name="research_documents"
+        )
+
+    return collection
+
+
 def clear_database():
     """
     Clear all documents from ChromaDB before a new upload.
     """
 
-    global collection
+    global client, collection
+
+    get_collection()
 
     try:
         client.delete_collection("research_documents")
@@ -24,10 +38,13 @@ def clear_database():
         name="research_documents"
     )
 
+
 def store_document(document_name, chunks, embeddings):
     """
     Store document chunks and embeddings in ChromaDB.
     """
+
+    collection = get_collection()
 
     ids = [
         f"{document_name}_{i}"
@@ -47,10 +64,14 @@ def store_document(document_name, chunks, embeddings):
         embeddings=embeddings.tolist(),
         metadatas=metadatas
     )
+
+
 def search_documents(query, top_k=5):
     """
     Search for the most relevant document chunks.
     """
+
+    collection = get_collection()
 
     query_embedding = generate_embeddings([query])[0]
 
